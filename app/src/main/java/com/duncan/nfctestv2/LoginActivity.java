@@ -186,7 +186,7 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
             // Show a progress spinner, and kick off a background task to
             // perform the user login attempt.
             showProgress(true);
-            mAuthTask = new UserLoginTask(email, password, this);
+            mAuthTask = new UserLoginTask(email, password);
             mAuthTask.execute((Void) null);
         }
     }
@@ -299,12 +299,10 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
 
         private final String mEmail;
         private final String mPassword;
-        private LoginActivity activity;
 
-        UserLoginTask(String email, String password, LoginActivity a) {
+        UserLoginTask(String email, String password) {
             mEmail = email;
             mPassword = password;
-            activity = a;
         }
 
         @Override
@@ -336,10 +334,8 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
             showProgress(false);
 
             if (success) {
-                LoginState.setUserName(activity, "Username" );
-                Intent mainIntent = new Intent(activity, MainActivity.class);
-                activity.startActivity(mainIntent);
-                activity.finish();
+                Intent myIntent = new Intent(LoginActivity.this, MainActivity.class);
+                startActivity(myIntent);
             } else {
                 mPasswordView.setError(getString(R.string.error_incorrect_password));
                 mPasswordView.requestFocus();
