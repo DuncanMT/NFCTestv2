@@ -1,6 +1,7 @@
 package com.duncan.nfctestv2;
 
 import android.app.PendingIntent;
+import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.nfc.NfcAdapter;
@@ -8,6 +9,8 @@ import android.nfc.tech.NfcA;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
@@ -20,17 +23,35 @@ public class MainActivity extends AppCompatActivity {
 
     private TextView mTextView;
     private NfcAdapter mNfcAdapter;
+    private DatabaseHandler db;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        if(LoginState.getUserName(MainActivity.this).length() == 0)
+        {
+            Intent mainIntent = new Intent(MainActivity.this, LoginActivity.class);
+            MainActivity.this.startActivity(mainIntent);
+            MainActivity.this.finish();
+        }
+
+        db = new DatabaseHandler(this);
+
         Button button= (Button) findViewById(R.id.button);
         button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 Intent i = new Intent(getBaseContext(), LoginActivity.class);
                 startActivity(i);
+            }
+        });
+        Button button2= (Button) findViewById(R.id.button2);
+        button.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
             }
         });
         mTextView = (TextView) findViewById(R.id.text);
@@ -52,6 +73,32 @@ public class MainActivity extends AppCompatActivity {
         }
 
         handleIntent(getIntent());
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        // Inflate the menu; this adds items to the action bar if it is present.
+        getMenuInflater().inflate(R.menu.menu_main, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle action bar item clicks here. The action bar will
+        // automatically handle clicks on the Home/Up button, so long
+        // as you specify a parent activity in AndroidManifest.xml.
+        int id = item.getItemId();
+
+        //noinspection SimplifiableIfStatement
+        if (id == R.id.action_logout) {
+            LoginState.clearUserName(this);
+            Intent mainIntent = new Intent(MainActivity.this, LoginActivity.class);
+            MainActivity.this.startActivity(mainIntent);
+            MainActivity.this.finish();
+            return true;
+        }
+
+        return super.onOptionsItemSelected(item);
     }
 
     @Override
@@ -119,11 +166,16 @@ public class MainActivity extends AppCompatActivity {
         String action = intent.getAction();
         if (NfcAdapter.ACTION_TECH_DISCOVERED.equals(action)) {
                 byte [] tag = intent.getByteArrayExtra(NfcAdapter.EXTRA_ID);
-            new IDReaderTask().execute(tag);
+            new IDReaderTask(this).execute(tag);
         }
     }
     private class IDReaderTask extends AsyncTask<byte[], Void, String> {
 
+        private Context mContext;
+
+        public IDReaderTask(Context context){
+            mContext = context;
+        }
         @Override
         protected String doInBackground(byte[]... params) {
             byte[] idInBinary = params[0];
@@ -149,6 +201,11 @@ public class MainActivity extends AppCompatActivity {
         protected void onPostExecute(String result) {
             if (result != null) {
                 mTextView.setText("Read content: " + result);
+                if(!db.checkExists(result)) {
+                    db.addStudent(new Student("Duncan", "40164965", result, "SOC10101"));
+                }else{
+                    Toast.makeText(mContext, "User already exists", Toast.LENGTH_LONG).show();
+                }
             }
         }
     }

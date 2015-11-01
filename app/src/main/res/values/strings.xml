@@ -15,7 +15,7 @@
         completions."
     </string>
     <string name="logo_desc">Edinburgh Napier University Logo</string>
-
     <string name="explanation">explanation</string>
     <string name="title_activity_login2">Sign in</string>
+    <string name="logout">Logout</string>
 </resources>
