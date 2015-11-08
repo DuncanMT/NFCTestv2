@@ -39,16 +39,8 @@ public class MainActivity extends AppCompatActivity {
 
         db = new DatabaseHandler(this);
 
-        Button button= (Button) findViewById(R.id.button);
-        button.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent i = new Intent(getBaseContext(), LoginActivity.class);
-                startActivity(i);
-            }
-        });
         Button button2= (Button) findViewById(R.id.button2);
-        button.setOnClickListener(new View.OnClickListener() {
+        button2.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
 
