@@ -39,7 +39,13 @@ public class Student {
     }
 
     public String getName(){
-        return this._name;
+        if(this._name != null) {
+            return this._name;
+        }
+        else
+        {
+            return "fail";
+        }
     }
 
     public void setName(String name){
