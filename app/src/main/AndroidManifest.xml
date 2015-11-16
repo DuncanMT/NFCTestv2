@@ -3,6 +3,7 @@
     package="com.duncan.nfctestv2" >
 
     <uses-permission android:name="android.permission.NFC" />
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <uses-feature
         android:name="android.hardware.nfc"

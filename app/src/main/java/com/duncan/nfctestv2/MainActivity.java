@@ -16,6 +16,19 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.Volley;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 
 public class MainActivity extends AppCompatActivity {
     public static final String MIME_TEXT_PLAIN = "text/plain";
@@ -30,6 +43,8 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        mTextView = (TextView) findViewById(R.id.text);
+
         if(LoginState.getUserName(MainActivity.this).length() == 0)
         {
             Intent mainIntent = new Intent(MainActivity.this, LoginActivity.class);
@@ -37,20 +52,12 @@ public class MainActivity extends AppCompatActivity {
             MainActivity.this.finish();
         }
 
-        db = new DatabaseHandler(this);
 
-        Button button2= (Button) findViewById(R.id.button2);
-        button2.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-            }
-        });
-        mTextView = (TextView) findViewById(R.id.text);
+        db = new DatabaseHandler(this);
 
         mNfcAdapter = NfcAdapter.getDefaultAdapter(this);
 
         if (mNfcAdapter == null) {
-            // Stop here, we definitely need NFC
             Toast.makeText(this, "This device doesn't support NFC.", Toast.LENGTH_LONG).show();
             finish();
             return;
@@ -60,7 +67,7 @@ public class MainActivity extends AppCompatActivity {
         if (!mNfcAdapter.isEnabled()) {
             mTextView.setText("NFC is disabled.");
         } else {
-            mTextView.setText(R.string.explanation);
+            mTextView.setText("");
         }
 
         handleIntent(getIntent());
@@ -68,19 +75,15 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main, menu);
+
         return true;
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
 
-        //noinspection SimplifiableIfStatement
         if (id == R.id.action_logout) {
             LoginState.clearUserName(this);
             Intent mainIntent = new Intent(MainActivity.this, LoginActivity.class);
@@ -95,19 +98,11 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-
-        /**
-         * It's important, that the activity is in the foreground (resumed). Otherwise
-         * an IllegalStateException is thrown.
-         */
         setupForegroundDispatch(this, mNfcAdapter);
     }
 
     @Override
     protected void onPause() {
-        /**
-         * Call this before onPause, otherwise an IllegalArgumentException is thrown as well.
-         */
         stopForegroundDispatch(this, mNfcAdapter);
 
         super.onPause();
@@ -115,20 +110,10 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onNewIntent(Intent intent) {
-        /**
-         * This method gets called, when a new Intent gets associated with the current activity instance.
-         * Instead of creating a new activity, onNewIntent will be called. For more information have a look
-         * at the documentation.
-         *
-         * In our case this method gets called, when the user attaches a Tag to the device.
-         */
         handleIntent(intent);
     }
 
-    /**
-     * @param activity The corresponding {@link AppCompatActivity} requesting the foreground dispatch.
-     * @param adapter The {@link NfcAdapter} used for the foreground dispatch.
-     */
+
     public static void setupForegroundDispatch(final AppCompatActivity activity, NfcAdapter adapter) {
         final Intent intent = new Intent(activity.getApplicationContext(), activity.getClass());
         intent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
@@ -146,59 +131,55 @@ public class MainActivity extends AppCompatActivity {
         adapter.enableForegroundDispatch(activity, pendingIntent, filters, techList);
     }
 
-    /**
-     * @param activity The corresponding {@link AppCompatActivity} requesting to stop the foreground dispatch.
-     * @param adapter The {@link NfcAdapter} used for the foreground dispatch.
-     */
     public static void stopForegroundDispatch(final AppCompatActivity activity, NfcAdapter adapter) {
         adapter.disableForegroundDispatch(activity);
     }
     private void handleIntent(Intent intent) {
         String action = intent.getAction();
         if (NfcAdapter.ACTION_TECH_DISCOVERED.equals(action)) {
-                byte [] tag = intent.getByteArrayExtra(NfcAdapter.EXTRA_ID);
-            new IDReaderTask(this).execute(tag);
-        }
-    }
-    private class IDReaderTask extends AsyncTask<byte[], Void, String> {
+            byte [] idInBinary = intent.getByteArrayExtra(NfcAdapter.EXTRA_ID);
+            String CardID = readID(idInBinary);
+            Toast.makeText(this, CardID, Toast.LENGTH_LONG).show();
+            String uri = String.format("http://socweb8.napier.ac.uk/~40164965/CardID.php?card=%1$s",
+                    CardID);
+            // Instantiate the RequestQueue.
+            RequestQueue queue = Volley.newRequestQueue(this);
 
-        private Context mContext;
+            CustomRequest stringRequest = new CustomRequest( uri,
+                    new Response.Listener<JSONObject>() {
+                        @Override
+                        public void onResponse(JSONObject response) {
+                            try {
+                                mTextView.setText(response.getString("SPR_FNM1"));
+                            } catch (JSONException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    }, new Response.ErrorListener() {
 
-        public IDReaderTask(Context context){
-            mContext = context;
-        }
-        @Override
-        protected String doInBackground(byte[]... params) {
-            byte[] idInBinary = params[0];
-            return readID(idInBinary);
-        }
-
-        private String readID(byte [] inarray) {
-            int i, j, in;
-            String[] hex = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F"};
-            String out = "";
-
-            for (j = 0; j < inarray.length; ++j) {
-                in = (int) inarray[j] & 0xff;
-                i = (in >> 4) & 0x0f;
-                out += hex[i];
-                i = in & 0x0f;
-                out += hex[i];
-            }
-            return out;
-        }
-
-        @Override
-        protected void onPostExecute(String result) {
-            if (result != null) {
-                mTextView.setText("Read content: " + result);
-                if(!db.checkExists(result)) {
-                    db.addStudent(new Student("Duncan", "40164965", result, "SOC10101"));
-                }else{
-                    Toast.makeText(mContext, "User already exists", Toast.LENGTH_LONG).show();
+                @Override
+                public void onErrorResponse(VolleyError error) {
+                    mTextView.setText("That didn't work!");
                 }
-            }
+            });
+            queue.add(stringRequest);
         }
     }
+
+    private String readID(byte [] inarray) {
+        int i, j, in;
+        String[] hex = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F"};
+        String out = "";
+
+        for (j = 0; j < inarray.length; ++j) {
+            in = (int) inarray[j] & 0xff;
+            i = (in >> 4) & 0x0f;
+            out += hex[i];
+            i = in & 0x0f;
+            out += hex[i];
+        }
+        return out;
+    }
+
 }
 
