@@ -1,33 +1,33 @@
 package com.duncan.nfctestv2;
 
 import android.app.PendingIntent;
-import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.nfc.NfcAdapter;
 import android.nfc.tech.NfcA;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.Button;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.ListView;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.Volley;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.ArrayList;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -35,8 +35,12 @@ public class MainActivity extends AppCompatActivity {
     public static final String TAG = "NfcDemo";
 
     private TextView mTextView;
+    private Spinner moduleView;
+    private ListView studentListView;
     private NfcAdapter mNfcAdapter;
-    private DatabaseHandler db;
+    private ArrayList<String> listItems=new ArrayList<>();
+    private ArrayAdapter<String> listAdapter;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,6 +48,60 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         mTextView = (TextView) findViewById(R.id.text);
+        moduleView = (Spinner) findViewById(R.id.module);
+        studentListView = (ListView) findViewById(R.id.listView);
+
+        ArrayList<String> modules = new ArrayList<String>();
+        modules.add("SOC10101");
+        modules.add("SET10108");
+        modules.add("SET10109");
+
+
+
+        listAdapter=new ArrayAdapter<String>(this,
+                android.R.layout.simple_list_item_1,
+                listItems);
+        studentListView.setAdapter(listAdapter);
+
+        ArrayAdapter adapter = new ArrayAdapter(this, android.R.layout.simple_spinner_item, modules);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        moduleView.setAdapter(adapter);
+        moduleView.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                String module = parent.getItemAtPosition(position).toString();
+
+                String uri = String.format("http://socweb8.napier.ac.uk/~40164965/CardID.php?class=%1$s",
+                        module);
+                // Instantiate the RequestQueue.
+                RequestQueue queue = Volley.newRequestQueue(MainActivity.this);
+
+                CustomRequest stringRequest = new CustomRequest(uri,
+                        new Response.Listener<JSONObject>() {
+                            @Override
+                            public void onResponse(JSONObject response) {
+
+                                    listAdapter.clear();
+                                    listAdapter.add(response.toString());
+
+                            }
+                        }, new Response.ErrorListener() {
+
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                        mTextView.setText("That didn't work!1");
+                    }
+                });
+                queue.add(stringRequest);
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+
+            }
+        });
+
+
 
         if(LoginState.getUserName(MainActivity.this).length() == 0)
         {
@@ -52,8 +110,6 @@ public class MainActivity extends AppCompatActivity {
             MainActivity.this.finish();
         }
 
-
-        db = new DatabaseHandler(this);
 
         mNfcAdapter = NfcAdapter.getDefaultAdapter(this);
 
@@ -65,7 +121,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         if (!mNfcAdapter.isEnabled()) {
-            mTextView.setText("NFC is disabled.");
+            mTextView.setText(R.string.nfc_disabled);
         } else {
             mTextView.setText("");
         }
@@ -159,7 +215,7 @@ public class MainActivity extends AppCompatActivity {
 
                 @Override
                 public void onErrorResponse(VolleyError error) {
-                    mTextView.setText("That didn't work!");
+                    mTextView.setText("That didn't work!2");
                 }
             });
             queue.add(stringRequest);
