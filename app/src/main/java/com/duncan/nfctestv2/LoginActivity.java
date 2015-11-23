@@ -18,8 +18,8 @@ import android.os.Bundle;
 import android.provider.ContactsContract;
 import android.support.annotation.NonNull;
 import android.support.design.widget.Snackbar;
-import android.support.v7.app.AppCompatActivity;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -29,6 +29,16 @@ import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
+
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.Volley;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -38,7 +48,7 @@ import static android.Manifest.permission.READ_CONTACTS;
 /**
  * A login screen that offers login via email/password.
  */
-public class LoginActivity extends Activity implements LoaderCallbacks<Cursor> {
+public class LoginActivity extends NFCActivity implements LoaderCallbacks<Cursor> {
 
     /**
      * Id to identity READ_CONTACTS permission request.
@@ -62,6 +72,8 @@ public class LoginActivity extends Activity implements LoaderCallbacks<Cursor> {
     private EditText mPasswordView;
     private View mProgressView;
     private View mLoginFormView;
+    private RequestQueue mVolleyQueue;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -70,6 +82,8 @@ public class LoginActivity extends Activity implements LoaderCallbacks<Cursor> {
         // Set up the login form.
         mEmailView = (AutoCompleteTextView) findViewById(R.id.email);
         populateAutoComplete();
+
+        mVolleyQueue = Volley.newRequestQueue(this);
 
         mPasswordView = (EditText) findViewById(R.id.password);
         mPasswordView.setOnEditorActionListener(new TextView.OnEditorActionListener() {
@@ -93,6 +107,7 @@ public class LoginActivity extends Activity implements LoaderCallbacks<Cursor> {
 
         mLoginFormView = findViewById(R.id.login_form);
         mProgressView = findViewById(R.id.login_progress);
+        handleIntent(getIntent());
     }
 
     private void populateAutoComplete() {
@@ -139,13 +154,53 @@ public class LoginActivity extends Activity implements LoaderCallbacks<Cursor> {
         }
     }
 
+    @Override
+    protected void onNewIntent(Intent intent) {
+        handleIntent(intent);
+    }
+
     private void handleIntent(Intent intent) {
         String action = intent.getAction();
         if (NfcAdapter.ACTION_TECH_DISCOVERED.equals(action)) {
             byte [] idInBinary = intent.getByteArrayExtra(NfcAdapter.EXTRA_ID);
             String CardID = readID(idInBinary);
+            Log.v("login", CardID);
+            String url = "http://napierattendance-duncanmt.rhcloud.com/CardID.php?card="+CardID;
 
+            // Request a string response from the provided URL.
+            JsonArrayRequest jsonArrayRequest = new JsonArrayRequest( url,
+                    new Response.Listener<JSONArray>() {
+                        @Override
+                        public void onResponse(JSONArray response) {
+                            Log.v("onResponselogin", response.toString());
+                            try {
+                                JSONObject jb = (JSONObject) response.get(0);
+                                String present = jb.getString("PRESENT");
+                                String name = jb.getString("SPR_FNM1");
+                                Log.v("onResponselogin", present);
+                                Log.v("onResponselogin", name);
+                                if(present.equals("1")){
+                                    LoginState.setUserName(LoginActivity.this, name );
+                                    Intent mainIntent = new Intent(LoginActivity.this, MainActivity.class);
+                                    LoginActivity.this.startActivity(mainIntent);
+                                    LoginActivity.this.finish();
+                                }else{
+                                    Toast.makeText(LoginActivity.this, "Not Present", Toast.LENGTH_SHORT).show();
+                                }
+                            }catch(JSONException e){
+                                e.printStackTrace();
+                            }
+                        }
+
+                    }, new Response.ErrorListener() {
+                @Override
+                public void onErrorResponse(VolleyError error) {
+                    Log.v("Volley Error", error.toString());
+                }
+            });
+            mVolleyQueue.add(jsonArrayRequest);
         }
+
     }
 
 
