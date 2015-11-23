@@ -1,14 +1,9 @@
 package com.duncan.nfctestv2;
 
-/**
- * Created by Duncan on 15/11/2015.
- */
 import java.io.UnsupportedEncodingException;
 import java.util.Map;
-
 import org.json.JSONException;
 import org.json.JSONObject;
-
 import com.android.volley.NetworkResponse;
 import com.android.volley.ParseError;
 import com.android.volley.Request;
@@ -17,14 +12,16 @@ import com.android.volley.Response.ErrorListener;
 import com.android.volley.Response.Listener;
 import com.android.volley.toolbox.HttpHeaderParser;
 
-public class CustomRequest extends Request<JSONObject>{
+public class CustomRequest extends Request<JSONObject> {
 
     private Listener<JSONObject> listener;
     private Map<String, String> params;
 
-    public CustomRequest(String url,Listener<JSONObject> reponseListener, ErrorListener errorListener) {
+    public CustomRequest(String url, Map<String, String> params,
+                         Listener<JSONObject> reponseListener, ErrorListener errorListener) {
         super(Method.GET, url, errorListener);
         this.listener = reponseListener;
+        this.params = params;
     }
 
     public CustomRequest(int method, String url, Map<String, String> params,
@@ -34,15 +31,10 @@ public class CustomRequest extends Request<JSONObject>{
         this.params = params;
     }
 
-    @Override
-    protected Map<String, String> getParams() throws com.android.volley.AuthFailureError {
+    protected Map<String, String> getParams()
+            throws com.android.volley.AuthFailureError {
         return params;
     };
-
-    @Override
-    protected void deliverResponse(JSONObject response) {
-        listener.onResponse(response);
-    }
 
     @Override
     protected Response<JSONObject> parseNetworkResponse(NetworkResponse response) {
@@ -58,4 +50,8 @@ public class CustomRequest extends Request<JSONObject>{
         }
     }
 
+    @Override
+    protected void deliverResponse(JSONObject response) {
+        listener.onResponse(response);
+    }
 }

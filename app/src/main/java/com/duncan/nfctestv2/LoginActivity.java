@@ -3,6 +3,7 @@ package com.duncan.nfctestv2;
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.annotation.TargetApi;
+import android.app.Activity;
 import android.app.LoaderManager.LoaderCallbacks;
 import android.content.CursorLoader;
 import android.content.Intent;
@@ -37,7 +38,7 @@ import static android.Manifest.permission.READ_CONTACTS;
 /**
  * A login screen that offers login via email/password.
  */
-public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<Cursor> {
+public class LoginActivity extends Activity implements LoaderCallbacks<Cursor> {
 
     /**
      * Id to identity READ_CONTACTS permission request.
@@ -324,9 +325,9 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
 
         private final String mEmail;
         private final String mPassword;
-        private AppCompatActivity activity;
+        private Activity activity;
 
-        UserLoginTask(String email, String password, AppCompatActivity activity) {
+        UserLoginTask(String email, String password, Activity activity) {
             mEmail = email;
             mPassword = password;
             this.activity = activity;

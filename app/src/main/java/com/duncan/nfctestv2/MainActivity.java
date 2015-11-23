@@ -1,12 +1,12 @@
 package com.duncan.nfctestv2;
 
+import android.app.Activity;
 import android.app.PendingIntent;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.nfc.NfcAdapter;
 import android.nfc.tech.NfcA;
 import android.os.Bundle;
-import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -28,9 +28,10 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends Activity {
     public static final String MIME_TEXT_PLAIN = "text/plain";
     public static final String TAG = "NfcDemo";
 
@@ -40,6 +41,7 @@ public class MainActivity extends AppCompatActivity {
     private NfcAdapter mNfcAdapter;
     private ArrayList<String> listItems=new ArrayList<>();
     private ArrayAdapter<String> listAdapter;
+    private RequestQueue mVolleyQueue;
 
 
     @Override
@@ -56,7 +58,7 @@ public class MainActivity extends AppCompatActivity {
         modules.add("SET10108");
         modules.add("SET10109");
 
-
+        mVolleyQueue = Volley.newRequestQueue(this);
 
         listAdapter=new ArrayAdapter<String>(this,
                 android.R.layout.simple_list_item_1,
@@ -66,33 +68,37 @@ public class MainActivity extends AppCompatActivity {
         ArrayAdapter adapter = new ArrayAdapter(this, android.R.layout.simple_spinner_item, modules);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         moduleView.setAdapter(adapter);
+
         moduleView.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 String module = parent.getItemAtPosition(position).toString();
+                String url = "http://napierattendance-duncanmt.rhcloud.com/CardID.php?class="+module;
 
-                String uri = String.format("http://socweb8.napier.ac.uk/~40164965/CardID.php?class=%1$s",
-                        module);
-                // Instantiate the RequestQueue.
-                RequestQueue queue = Volley.newRequestQueue(MainActivity.this);
-
-                CustomRequest stringRequest = new CustomRequest(uri,
-                        new Response.Listener<JSONObject>() {
+                JsonArrayRequest classRequest = new JsonArrayRequest( url,
+                        new Response.Listener<JSONArray>() {
                             @Override
-                            public void onResponse(JSONObject response) {
-
-                                    listAdapter.clear();
-                                    listAdapter.add(response.toString());
-
+                            public void onResponse(JSONArray response) {
+                                listAdapter.clear();
+                                Log.v("onResponse", response.toString());
+                                for(int i=0;i<response.length();i++){
+                                    try {
+                                        JSONObject jb = (JSONObject) response.get(i);
+                                        String name = jb.getString("SPR_FNM1");
+                                        listAdapter.add(name);
+                                    }catch(JSONException e){
+                                        e.printStackTrace();
+                                    }
+                                }
                             }
                         }, new Response.ErrorListener() {
-
                     @Override
                     public void onErrorResponse(VolleyError error) {
-                        mTextView.setText("That didn't work!1");
+                        Log.v("Volley Error", error.toString());
                     }
                 });
-                queue.add(stringRequest);
+                mVolleyQueue.add(classRequest);
+
             }
 
             @Override
@@ -170,7 +176,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    public static void setupForegroundDispatch(final AppCompatActivity activity, NfcAdapter adapter) {
+    public static void setupForegroundDispatch(final Activity activity, NfcAdapter adapter) {
         final Intent intent = new Intent(activity.getApplicationContext(), activity.getClass());
         intent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
 
@@ -187,7 +193,7 @@ public class MainActivity extends AppCompatActivity {
         adapter.enableForegroundDispatch(activity, pendingIntent, filters, techList);
     }
 
-    public static void stopForegroundDispatch(final AppCompatActivity activity, NfcAdapter adapter) {
+    public static void stopForegroundDispatch(final Activity activity, NfcAdapter adapter) {
         adapter.disableForegroundDispatch(activity);
     }
     private void handleIntent(Intent intent) {
@@ -196,29 +202,33 @@ public class MainActivity extends AppCompatActivity {
             byte [] idInBinary = intent.getByteArrayExtra(NfcAdapter.EXTRA_ID);
             String CardID = readID(idInBinary);
             Toast.makeText(this, CardID, Toast.LENGTH_LONG).show();
-            String uri = String.format("http://socweb8.napier.ac.uk/~40164965/CardID.php?card=%1$s",
-                    CardID);
-            // Instantiate the RequestQueue.
-            RequestQueue queue = Volley.newRequestQueue(this);
+            String url = "http://napierattendance-duncanmt.rhcloud.com/CardID.php?card="+CardID;
 
-            CustomRequest stringRequest = new CustomRequest( uri,
-                    new Response.Listener<JSONObject>() {
+            // Request a string response from the provided URL.
+            JsonArrayRequest jsonArrayRequest = new JsonArrayRequest( url,
+                    new Response.Listener<JSONArray>() {
                         @Override
-                        public void onResponse(JSONObject response) {
-                            try {
-                                mTextView.setText(response.getString("SPR_FNM1"));
-                            } catch (JSONException e) {
-                                e.printStackTrace();
+                        public void onResponse(JSONArray response) {
+                            Log.v("onResponse", response.toString());
+                            for(int i=0;i<response.length();i++){
+                                try {
+                                    JSONObject jb = (JSONObject) response.get(i);
+                                    String name = jb.getString("SPR_FNM1");
+                                    mTextView.setText(name);
+                                }catch(JSONException e){
+                                    e.printStackTrace();
+                                }
+
                             }
                         }
                     }, new Response.ErrorListener() {
-
                 @Override
                 public void onErrorResponse(VolleyError error) {
-                    mTextView.setText("That didn't work!2");
+                    Log.v("Volley Error", error.toString());
                 }
             });
-            queue.add(stringRequest);
+
+            mVolleyQueue.add(jsonArrayRequest);
         }
     }
 
