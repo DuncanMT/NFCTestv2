@@ -54,5 +54,4 @@ public class NFCActivity extends AppCompatActivity {
     public static void stopForegroundDispatch(final Activity activity, NfcAdapter adapter) {
         adapter.disableForegroundDispatch(activity);
     }
-
 }
